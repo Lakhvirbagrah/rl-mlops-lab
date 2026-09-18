@@ -2,7 +2,11 @@ import torch
 import torch.nn as nn
 import gymnasium as gym
 import random
-from replay_buffer import create_replay_buffer, add_experience
+from replay_buffer import (
+    create_replay_buffer,
+    add_experience,
+    sample_experiences
+)
 def create_q_network():
 
     network = nn.Sequential(
@@ -105,6 +109,40 @@ def calculate_target(network, next_state, reward, done, gamma=0.99):
         target = reward + gamma * best_future_q
 
     return target
+def train_from_replay(
+    network,
+    optimizer,
+    replay_buffer,
+    batch_size,
+    gamma=0.99
+):
+    experiences = sample_experiences(
+        replay_buffer,
+        batch_size
+    )
+
+    total_loss = 0
+
+    for experience in experiences:
+
+        state, action, reward, next_state, done = experience
+
+        loss = train_step(
+            network,
+            optimizer,
+            state,
+            action,
+            reward,
+            next_state,
+            done,
+            gamma
+        )
+
+        total_loss += loss
+
+    average_loss = total_loss / batch_size
+
+    return average_loss
 
 def train_step(
     network,
@@ -187,15 +225,8 @@ for episode in range(num_episodes):
         add_experience(replay_buffer,state,action,reward,next_state,done,10000)
         done = terminated or truncated
 
-        loss = train_step(
-            network,
-            optimizer,
-            state,
-            action,
-            reward,
-            next_state,
-            done
-        )
+        if len(replay_buffer) >= 32:
+            loss = train_from_replay(network,optimizer,replay_buffer,batch_size=32)
 
         state = next_state
         total_reward += reward
