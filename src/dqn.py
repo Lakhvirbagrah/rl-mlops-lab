@@ -54,3 +54,29 @@ while not done:
 print("Episode reward:", total_reward)
 
 env.close()
+
+def get_q_value(network, state, action):
+
+    state = torch.tensor(
+        state,
+        dtype=torch.float32
+    )
+
+    state = state.unsqueeze(0)
+
+    q_values = network(state)
+
+    q_value = q_values[0, action]
+
+    return q_value
+
+network = create_q_network()
+
+state = [0.1, 0.2, 0.05, -0.1]
+
+action = 1
+
+q_value = get_q_value(network, state, action)
+
+print("Action:", action)
+print("Q-value for selected action:", q_value.item())
