@@ -15,6 +15,14 @@ def create_q_network():
 
     return network
 
+def decay_epsilon(epsilon, decay_rate=0.995, min_epsilon=0.05):
+    epsilon = epsilon * decay_rate
+
+    if epsilon < min_epsilon:
+        epsilon = min_epsilon
+
+    return epsilon
+
 
 def choose_action(network, state):
 
@@ -193,12 +201,8 @@ env.close()
 
 state, info = env.reset()
 
+epsilon = 1.0
+
 for i in range(10):
-
-    action = choose_action_epsilon_greedy(
-        network,
-        state,
-        epsilon=0.0
-    )
-
-    print("Random action:", action)
+    epsilon = decay_epsilon(epsilon)
+    print("Epsilon:", epsilon)
