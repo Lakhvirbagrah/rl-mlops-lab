@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import gymnasium as gym
 import random
-
+from replay_buffer import create_replay_buffer, add_experience
 def create_q_network():
 
     network = nn.Sequential(
@@ -166,6 +166,7 @@ epsilon = 1.0
 rewards = []
 
 num_episodes = 100
+replay_buffer = create_replay_buffer(10000)
 
 for episode in range(num_episodes):
 
@@ -183,7 +184,7 @@ for episode in range(num_episodes):
         )
 
         next_state, reward, terminated, truncated, info = env.step(action)
-
+        add_experience(replay_buffer,state,action,reward,next_state,done,10000)
         done = terminated or truncated
 
         loss = train_step(
