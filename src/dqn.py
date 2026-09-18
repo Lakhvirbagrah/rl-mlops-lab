@@ -197,75 +197,78 @@ def train_step(
 
     return loss.item()
 
-env = gym.make("CartPole-v1")
+if __name__ == "__main__":
+    env = gym.make("CartPole-v1")
 
-network = create_q_network()
-target_network = create_q_network()
+    network = create_q_network()
+    target_network = create_q_network()
 
-target_network.load_state_dict(
-    network.state_dict()
-)
-
-target_network.eval()
-optimizer = torch.optim.Adam(network.parameters(), lr=0.001)
-
-epsilon = 1.0
-rewards = []
-
-num_episodes = 100
-replay_buffer = create_replay_buffer(10000)
-
-for episode in range(num_episodes):
-
-    state, info = env.reset()
-
-    total_reward = 0
-    done = False
-
-    while not done:
-
-        action = choose_action_epsilon_greedy(
-            network,
-            state,
-            epsilon
-        )
-
-        next_state, reward, terminated, truncated, info = env.step(action)
-        add_experience(replay_buffer,state,action,reward,next_state,done,10000)
-        done = terminated or truncated
-
-        if len(replay_buffer) >= 32:
-            loss = train_from_replay(network,optimizer,replay_buffer,batch_size=32)
-
-        state = next_state
-        total_reward += reward
-    if (episode + 1) % 10 == 0:
-
-        target_network.load_state_dict(
+    target_network.load_state_dict(
         network.state_dict()
     )
 
-    epsilon = decay_epsilon(epsilon)
-    rewards.append(total_reward)
+    target_network.eval()
+    optimizer = torch.optim.Adam(network.parameters(), lr=0.001)
+
+    epsilon = 1.0
+    rewards = []
+
+    num_episodes = 100
+    replay_buffer = create_replay_buffer(10000)
+
+    for episode in range(num_episodes):
+
+        state, info = env.reset()
+
+        total_reward = 0
+        done = False
+
+        while not done:
+
+            action = choose_action_epsilon_greedy(
+                network,
+                state,
+                epsilon
+            )
+
+            next_state, reward, terminated, truncated, info = env.step(action)
+            add_experience(replay_buffer,state,action,reward,next_state,done,10000)
+            done = terminated or truncated
+
+            if len(replay_buffer) >= 32:
+                loss = train_from_replay(network,optimizer,replay_buffer,batch_size=32)
+
+            state = next_state
+            total_reward += reward
+        if (episode + 1) % 10 == 0:
+
+            target_network.load_state_dict(
+            network.state_dict()
+        )
+
+        epsilon = decay_epsilon(epsilon)
+        rewards.append(total_reward)
 
 
-    print(
-        "Episode:",
-        episode + 1,
-        "Reward:",
-        total_reward,
-        "Epsilon:",
-        epsilon
+        print(
+            "Episode:",
+            episode + 1,
+            "Reward:",
+            total_reward,
+            "Epsilon:",
+            epsilon
+        )
+    average_reward = sum(rewards) / len(rewards)
+
+    print("Average reward:", average_reward)
+    print("Best reward:", max(rewards))
+    
+
+    torch.save(
+        network.state_dict(),
+        "models/dqn_cartpole.pth"
     )
-average_reward = sum(rewards) / len(rewards)
 
-print("Average reward:", average_reward)
-print("Best reward:", max(rewards))
-env.close()
-
-torch.save(
-    network.state_dict(),
-    "models/dqn_cartpole.pth"
-)
-
-print("Model saved.")
+    print("Model saved.")
+    env.close()
+    
