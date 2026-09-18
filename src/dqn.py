@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import gymnasium as gym
-
+import random
 
 def create_q_network():
 
@@ -54,6 +54,12 @@ while not done:
 print("Episode reward:", total_reward)
 
 env.close()
+def choose_action_epsilon_greedy(network, state, epsilon):
+
+    if random.random() < epsilon:
+        return random.randrange(2)
+
+    return choose_action(network, state)
 
 def get_q_value(network, state, action):
 
@@ -144,6 +150,8 @@ def train_step(
     return loss.item()
 
 
+env = gym.make("CartPole-v1")
+
 network = create_q_network()
 
 optimizer = torch.optim.Adam(
@@ -151,24 +159,46 @@ optimizer = torch.optim.Adam(
     lr=0.001
 )
 
-state = [0.1, 0.2, 0.05, -0.1]
+state, info = env.reset()
 
-action = 1
-
-reward = 1
-
-next_state = [0.2, 0.3, 0.04, -0.08]
-
+total_reward = 0
 done = False
 
-loss = train_step(
-    network,
-    optimizer,
-    state,
-    action,
-    reward,
-    next_state,
-    done
-)
+while not done:
 
-print("Training loss:", loss)
+    action = choose_action(network, state)
+
+    next_state, reward, terminated, truncated, info = env.step(action)
+
+    done = terminated or truncated
+
+    loss = train_step(
+        network,
+        optimizer,
+        state,
+        action,
+        reward,
+        next_state,
+        done
+    )
+
+    state = next_state
+
+    total_reward += reward
+
+print("Episode reward:", total_reward)
+print("Last loss:", loss)
+
+env.close()
+
+state, info = env.reset()
+
+for i in range(10):
+
+    action = choose_action_epsilon_greedy(
+        network,
+        state,
+        epsilon=0.0
+    )
+
+    print("Random action:", action)
