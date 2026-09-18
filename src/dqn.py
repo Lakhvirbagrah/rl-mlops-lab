@@ -4,6 +4,7 @@ import torch.nn as nn
 import gymnasium as gym
 import random
 import numpy as np
+import csv
 
 from replay_buffer import (
     create_replay_buffer,
@@ -278,6 +279,7 @@ if __name__ == "__main__":
             total_reward
         )
 
+
         print(
             "Episode:",
             episode + 1,
@@ -315,5 +317,22 @@ if __name__ == "__main__":
 
     print()
     print("Model saved.")
+    with open("results/rewards.csv", "w", newline="") as file:
+
+        writer = csv.writer(file)
+
+        writer.writerow([
+            "episode",
+            "reward"
+        ])
+
+        for episode, reward in enumerate(rewards, start=1):
+
+            writer.writerow([
+                episode,
+                reward
+            ])
+
+    print("Reward history saved.")
 
     env.close()
