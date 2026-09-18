@@ -262,3 +262,10 @@ average_reward = sum(rewards) / len(rewards)
 print("Average reward:", average_reward)
 print("Best reward:", max(rewards))
 env.close()
+
+torch.save(
+    network.state_dict(),
+    "models/dqn_cartpole.pth"
+)
+
+print("Model saved.")
