@@ -129,6 +129,7 @@ def train_from_replay(
 
         loss = train_step(
             network,
+            target_network,
             optimizer,
             state,
             action,
@@ -146,6 +147,7 @@ def train_from_replay(
 
 def train_step(
     network,
+    target_network,
     optimizer,
     state,
     action,
@@ -173,7 +175,7 @@ def train_step(
     # Calculate target
     with torch.no_grad():
 
-        next_q_values = network(next_state)
+        next_q_values = target_network(next_state)
 
         best_future_q = torch.max(next_q_values)
 
@@ -198,6 +200,13 @@ def train_step(
 env = gym.make("CartPole-v1")
 
 network = create_q_network()
+target_network = create_q_network()
+
+target_network.load_state_dict(
+    network.state_dict()
+)
+
+target_network.eval()
 optimizer = torch.optim.Adam(network.parameters(), lr=0.001)
 
 epsilon = 1.0
@@ -230,6 +239,11 @@ for episode in range(num_episodes):
 
         state = next_state
         total_reward += reward
+    if (episode + 1) % 10 == 0:
+
+        target_network.load_state_dict(
+        network.state_dict()
+    )
 
     epsilon = decay_epsilon(epsilon)
     rewards.append(total_reward)
