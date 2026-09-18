@@ -4,7 +4,7 @@ import numpy as np
 
 env = gym.make("CartPole-v1")
 
-num_episodes = 100
+num_episodes = 500
 
 rewards = []
 
