@@ -70,13 +70,41 @@ def get_q_value(network, state, action):
 
     return q_value
 
+
+def calculate_target(network, next_state, reward, done, gamma=0.99):
+
+    next_state = torch.tensor(
+        next_state,
+        dtype=torch.float32
+    )
+
+    next_state = next_state.unsqueeze(0)
+
+    with torch.no_grad():
+        next_q_values = network(next_state)
+
+        best_future_q = torch.max(next_q_values)
+
+    if done:
+        target = reward
+    else:
+        target = reward + gamma * best_future_q
+
+    return target
+
+
 network = create_q_network()
 
-state = [0.1, 0.2, 0.05, -0.1]
+next_state = [0.1, 0.2, 0.05, -0.1]
 
-action = 1
+reward = 1
+done = False
 
-q_value = get_q_value(network, state, action)
+target = calculate_target(
+    network,
+    next_state,
+    reward,
+    done
+)
 
-print("Action:", action)
-print("Q-value for selected action:", q_value.item())
+print("Target Q-value:", target.item())
