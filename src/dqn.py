@@ -92,19 +92,83 @@ def calculate_target(network, next_state, reward, done, gamma=0.99):
 
     return target
 
+def train_step(
+    network,
+    optimizer,
+    state,
+    action,
+    reward,
+    next_state,
+    done,
+    gamma=0.99
+):
+
+    state = torch.tensor(
+        state,
+        dtype=torch.float32
+    ).unsqueeze(0)
+
+    next_state = torch.tensor(
+        next_state,
+        dtype=torch.float32
+    ).unsqueeze(0)
+
+    # Q-value for the action we actually took
+    q_values = network(state)
+
+    predicted_q = q_values[0, action]
+
+    # Calculate target
+    with torch.no_grad():
+
+        next_q_values = network(next_state)
+
+        best_future_q = torch.max(next_q_values)
+
+        if done:
+            target_q = torch.tensor(reward)
+
+        else:
+            target_q = reward + gamma * best_future_q
+
+    # Calculate loss
+    loss = (predicted_q - target_q) ** 2
+
+    # Update network
+    optimizer.zero_grad()
+
+    loss.backward()
+
+    optimizer.step()
+
+    return loss.item()
+
 
 network = create_q_network()
 
-next_state = [0.1, 0.2, 0.05, -0.1]
+optimizer = torch.optim.Adam(
+    network.parameters(),
+    lr=0.001
+)
+
+state = [0.1, 0.2, 0.05, -0.1]
+
+action = 1
 
 reward = 1
+
+next_state = [0.2, 0.3, 0.04, -0.08]
+
 done = False
 
-target = calculate_target(
+loss = train_step(
     network,
-    next_state,
+    optimizer,
+    state,
+    action,
     reward,
+    next_state,
     done
 )
 
-print("Target Q-value:", target.item())
+print("Training loss:", loss)
