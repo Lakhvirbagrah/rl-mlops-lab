@@ -187,11 +187,11 @@ if __name__ == "__main__":
     )
 
     target_network.eval()
-
+    learning_rate= 0.0005
     # Optimizer
     optimizer = torch.optim.Adam(
         network.parameters(),
-        lr=0.001
+        lr=learning_rate
     )
 
     # Training settings
@@ -209,10 +209,10 @@ if __name__ == "__main__":
 
     rewards = []
         # Start MLflow run
-with mlflow.start_run(run_name="DQN-Baseline"):
+with mlflow.start_run(run_name="DQN-LR-0005"):
 
     mlflow.log_params({
-        "learning_rate": 0.001,
+        "learning_rate": learning_rate,
         "gamma": 0.99,
         "epsilon_start": 1.0,
         "epsilon_decay": 0.995,
