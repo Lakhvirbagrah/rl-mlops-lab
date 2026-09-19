@@ -7,6 +7,7 @@ import csv
 
 import mlflow
 import mlflow.pytorch
+from mlflow import MlflowClient
 
 from replay_buffer import (
     create_replay_buffer,
@@ -599,7 +600,15 @@ if __name__ == "__main__":
             input_example=input_example,
             serialization_format="pickle"
         )
+        client = MlflowClient()
 
+        client.set_registered_model_alias(
+            "DQN-CartPole-Model",
+            "candidate",
+            "1"
+        )
+
+        print("Alias 'candidate' assigned to model version 1.")
         print("Model registered with MLflow.")
 
 
