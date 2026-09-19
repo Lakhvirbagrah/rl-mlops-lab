@@ -187,7 +187,17 @@ if __name__ == "__main__":
     )
 
     target_network.eval()
-    learning_rate= 0.0005
+    #hyperparameters 
+    learning_rate = 0.001
+    gamma = 0.99
+    epsilon = epsilon_start = 1.0
+    epsilon_decay = 0.99
+    min_epsilon = 0.05
+    batch_size = 32
+    replay_capacity = 10000
+    num_episodes = 100
+    target_update_frequency = 10
+    seed = 42
     # Optimizer
     optimizer = torch.optim.Adam(
         network.parameters(),
@@ -195,13 +205,7 @@ if __name__ == "__main__":
     )
 
     # Training settings
-    epsilon = 1.0
 
-    num_episodes = 100
-
-    batch_size = 32
-
-    replay_capacity = 10000
 
     replay_buffer = create_replay_buffer(
         replay_capacity
@@ -209,19 +213,19 @@ if __name__ == "__main__":
 
     rewards = []
         # Start MLflow run
-with mlflow.start_run(run_name="DQN-LR-0005"):
+with mlflow.start_run(run_name="DQN-EpsilonDecay-099"):
 
     mlflow.log_params({
         "learning_rate": learning_rate,
-        "gamma": 0.99,
-        "epsilon_start": 1.0,
-        "epsilon_decay": 0.995,
-        "min_epsilon": 0.05,
-        "batch_size": 32,
-        "replay_capacity": 10000,
+        "gamma": gamma,
+        "epsilon_start": epsilon_start,
+        "epsilon_decay": epsilon_decay,
+        "min_epsilon": min_epsilon,
+        "batch_size": batch_size,
+        "replay_capacity": replay_capacity,
         "episodes": num_episodes,
-        "target_update_frequency": 10,
-        "random_seed": 42
+        "target_update_frequency": target_update_frequency,
+        "random_seed": seed
     })
 
     # Training loop
@@ -265,19 +269,19 @@ with mlflow.start_run(run_name="DQN-LR-0005"):
                     optimizer,
                     replay_buffer,
                     batch_size,
-                    gamma=0.99
+                    gamma=gamma
                 )
 
             state = next_state
             total_reward += reward
 
-        if (episode + 1) % 10 == 0:
+        if (episode + 1) % target_update_frequency == 0:
 
             target_network.load_state_dict(
                 network.state_dict()
             )
 
-        epsilon = decay_epsilon(epsilon)
+        epsilon = decay_epsilon(epsilon,decay_rate=epsilon_decay,min_epsilon=min_epsilon)
 
         rewards.append(total_reward)
 
