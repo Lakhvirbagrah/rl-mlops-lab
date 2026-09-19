@@ -1,11 +1,12 @@
-
 import torch
 import torch.nn as nn
 import gymnasium as gym
 import random
 import numpy as np
 import csv
+
 import mlflow
+import mlflow.pytorch
 
 from replay_buffer import (
     create_replay_buffer,
@@ -38,7 +39,9 @@ def choose_action(network, state):
 
     q_values = network(state)
 
-    action = torch.argmax(q_values).item()
+    action = torch.argmax(
+        q_values
+    ).item()
 
     return action
 
@@ -50,9 +53,13 @@ def choose_action_epsilon_greedy(
 ):
 
     if random.random() < epsilon:
+
         return random.randrange(2)
 
-    return choose_action(network, state)
+    return choose_action(
+        network,
+        state
+    )
 
 
 def decay_epsilon(
@@ -64,6 +71,7 @@ def decay_epsilon(
     epsilon = epsilon * decay_rate
 
     if epsilon < min_epsilon:
+
         epsilon = min_epsilon
 
     return epsilon
@@ -155,7 +163,7 @@ def train_from_replay(
         (predicted_q - target_q) ** 2
     )
 
-    # Update network
+    # Backpropagation
     optimizer.zero_grad()
 
     loss.backward()
@@ -167,17 +175,67 @@ def train_from_replay(
 
 if __name__ == "__main__":
 
+    # ---------------------------
+    # Hyperparameters
+    # ---------------------------
+
+    learning_rate = 0.001
+
+    gamma = 0.99
+
+    epsilon_start = 1.0
+
+    epsilon_decay = 0.99
+
+    min_epsilon = 0.05
+
+    batch_size = 32
+
+    replay_capacity = 10000
+
+    num_episodes = 100
+
+    target_update_frequency = 10
+
+    seed = 42
+
+    # Working epsilon
+    epsilon = epsilon_start
+
+
+    # ---------------------------
     # Reproducibility
-    random.seed(42)
-    np.random.seed(42)
-    torch.manual_seed(42)
-        # MLflow experiment
-    mlflow.set_experiment("DQN-CartPole")   
+    # ---------------------------
 
+    random.seed(seed)
+
+    np.random.seed(seed)
+
+    torch.manual_seed(seed)
+
+
+    # ---------------------------
+    # MLflow experiment
+    # ---------------------------
+
+    mlflow.set_experiment(
+        "DQN-CartPole"
+    )
+
+
+    # ---------------------------
     # Environment
-    env = gym.make("CartPole-v1")
+    # ---------------------------
 
+    env = gym.make(
+        "CartPole-v1"
+    )
+
+
+    # ---------------------------
     # Networks
+    # ---------------------------
+
     network = create_q_network()
 
     target_network = create_q_network()
@@ -187,183 +245,362 @@ if __name__ == "__main__":
     )
 
     target_network.eval()
-    #hyperparameters 
-    learning_rate = 0.001
-    gamma = 0.99
-    epsilon = epsilon_start = 1.0
-    epsilon_decay = 0.99
-    min_epsilon = 0.05
-    batch_size = 32
-    replay_capacity = 10000
-    num_episodes = 100
-    target_update_frequency = 10
-    seed = 42
+
+
+    # ---------------------------
     # Optimizer
+    # ---------------------------
+
     optimizer = torch.optim.Adam(
         network.parameters(),
         lr=learning_rate
     )
 
-    # Training settings
 
+    # ---------------------------
+    # Replay Buffer
+    # ---------------------------
 
     replay_buffer = create_replay_buffer(
         replay_capacity
     )
 
     rewards = []
-        # Start MLflow run
-with mlflow.start_run(run_name="DQN-EpsilonDecay-099"):
 
-    mlflow.log_params({
-        "learning_rate": learning_rate,
-        "gamma": gamma,
-        "epsilon_start": epsilon_start,
-        "epsilon_decay": epsilon_decay,
-        "min_epsilon": min_epsilon,
-        "batch_size": batch_size,
-        "replay_capacity": replay_capacity,
-        "episodes": num_episodes,
-        "target_update_frequency": target_update_frequency,
-        "random_seed": seed
-    })
 
-    # Training loop
-    for episode in range(num_episodes):
+    # ==========================================
+    # MLflow Run
+    # ==========================================
 
-        state, info = env.reset()
+    with mlflow.start_run(
+        run_name="DQN-Registered-V1"
+    ):
 
-        total_reward = 0
-        done = False
-        loss = 0.0
+        # ---------------------------
+        # Log parameters
+        # ---------------------------
 
-        while not done:
+        mlflow.log_params({
 
-            action = choose_action_epsilon_greedy(
-                network,
-                state,
-                epsilon
-            )
+            "learning_rate":
+                learning_rate,
 
-            next_state, reward, terminated, truncated, info = env.step(
-                action
-            )
+            "gamma":
+                gamma,
 
-            done = terminated or truncated
+            "epsilon_start":
+                epsilon_start,
 
-            add_experience(
-                replay_buffer,
-                state,
-                action,
-                reward,
-                next_state,
-                done,
-                replay_capacity
-            )
+            "epsilon_decay":
+                epsilon_decay,
 
-            if len(replay_buffer) >= batch_size:
+            "min_epsilon":
+                min_epsilon,
 
-                loss = train_from_replay(
-                    network,
-                    target_network,
-                    optimizer,
-                    replay_buffer,
-                    batch_size,
-                    gamma=gamma
+            "batch_size":
+                batch_size,
+
+            "replay_capacity":
+                replay_capacity,
+
+            "episodes":
+                num_episodes,
+
+            "target_update_frequency":
+                target_update_frequency,
+
+            "random_seed":
+                seed
+
+        })
+
+
+        # ---------------------------
+        # Training
+        # ---------------------------
+
+        for episode in range(
+            num_episodes
+        ):
+
+            state, info = env.reset()
+
+            total_reward = 0
+
+            done = False
+
+            loss = 0.0
+
+
+            while not done:
+
+                # Choose action
+                action = (
+                    choose_action_epsilon_greedy(
+                        network,
+                        state,
+                        epsilon
+                    )
                 )
 
-            state = next_state
-            total_reward += reward
 
-        if (episode + 1) % target_update_frequency == 0:
+                # Take action
+                (
+                    next_state,
+                    reward,
+                    terminated,
+                    truncated,
+                    info
+                ) = env.step(
+                    action
+                )
 
-            target_network.load_state_dict(
-                network.state_dict()
+
+                # Calculate done first
+                done = (
+                    terminated
+                    or truncated
+                )
+
+
+                # Store experience
+                add_experience(
+                    replay_buffer,
+                    state,
+                    action,
+                    reward,
+                    next_state,
+                    done,
+                    replay_capacity
+                )
+
+
+                # Train from replay
+                if (
+                    len(replay_buffer)
+                    >= batch_size
+                ):
+
+                    loss = (
+                        train_from_replay(
+                            network,
+                            target_network,
+                            optimizer,
+                            replay_buffer,
+                            batch_size,
+                            gamma=gamma
+                        )
+                    )
+
+
+                state = next_state
+
+                total_reward += reward
+
+
+            # ---------------------------
+            # Update target network
+            # ---------------------------
+
+            if (
+                (episode + 1)
+                % target_update_frequency
+                == 0
+            ):
+
+                target_network.load_state_dict(
+                    network.state_dict()
+                )
+
+
+            # ---------------------------
+            # Reduce exploration
+            # ---------------------------
+
+            epsilon = decay_epsilon(
+                epsilon,
+                decay_rate=epsilon_decay,
+                min_epsilon=min_epsilon
             )
 
-        epsilon = decay_epsilon(epsilon,decay_rate=epsilon_decay,min_epsilon=min_epsilon)
 
-        rewards.append(total_reward)
+            rewards.append(
+                total_reward
+            )
+
+
+            # ---------------------------
+            # Log episode metrics
+            # ---------------------------
+
+            mlflow.log_metric(
+                "episode_reward",
+                total_reward,
+                step=episode + 1
+            )
+
+            mlflow.log_metric(
+                "loss",
+                loss,
+                step=episode + 1
+            )
+
+            mlflow.log_metric(
+                "epsilon",
+                epsilon,
+                step=episode + 1
+            )
+
+
+            print(
+                "Episode:",
+                episode + 1,
+                "Reward:",
+                total_reward,
+                "Epsilon:",
+                epsilon,
+                "Loss:",
+                loss
+            )
+
+
+        # ---------------------------
+        # Final results
+        # ---------------------------
+
+        average_reward = (
+            sum(rewards)
+            / len(rewards)
+        )
+
+        best_reward = max(
+            rewards
+        )
+
 
         mlflow.log_metric(
-            "episode_reward",
-            total_reward,
-            step=episode + 1
+            "average_reward",
+            average_reward
         )
 
         mlflow.log_metric(
-            "loss",
-            loss,
-            step=episode + 1
+            "best_reward",
+            best_reward
         )
 
-        mlflow.log_metric(
-            "epsilon",
-            epsilon,
-            step=episode + 1
+
+        print()
+
+        print(
+            "Training Results"
         )
 
         print(
-            "Episode:",
-            episode + 1,
-            "Reward:",
-            total_reward,
-            "Epsilon:",
-            epsilon,
-            "Loss:",
-            loss
+            "----------------"
         )
 
-    # Final results
-    average_reward = sum(rewards) / len(rewards)
-    best_reward = max(rewards)
+        print(
+            "Average reward:",
+            average_reward
+        )
 
-    mlflow.log_metric(
-        "average_reward",
-        average_reward
-    )
+        print(
+            "Best reward:",
+            best_reward
+        )
 
-    mlflow.log_metric(
-        "best_reward",
-        best_reward
-    )
 
-    # Save model
-    torch.save(
-        network.state_dict(),
-        "models/dqn_cartpole.pth"
-    )
+        # ---------------------------
+        # Save PyTorch model file
+        # ---------------------------
 
-    mlflow.log_artifact(
-        "models/dqn_cartpole.pth"
-    )
+        torch.save(
+            network.state_dict(),
+            "models/dqn_cartpole.pth"
+        )
 
-    # Save reward history
-    with open(
-        "results/rewards.csv",
-        "w",
-        newline=""
-    ) as file:
+        print()
 
-        writer = csv.writer(file)
+        print(
+            "Model saved."
+        )
 
-        writer.writerow([
-            "episode",
-            "reward"
-        ])
 
-        for episode, reward in enumerate(
-            rewards,
-            start=1
-        ):
+        # Log normal model artifact
+        mlflow.log_artifact(
+            "models/dqn_cartpole.pth"
+        )
+
+
+        # ---------------------------
+        # Save reward CSV
+        # ---------------------------
+
+        with open(
+            "results/rewards.csv",
+            "w",
+            newline=""
+        ) as file:
+
+            writer = csv.writer(
+                file
+            )
 
             writer.writerow([
-                episode,
-                reward
+                "episode",
+                "reward"
             ])
 
-    mlflow.log_artifact(
-        "results/rewards.csv"
-    )
+            for (
+                episode,
+                reward
+            ) in enumerate(
+                rewards,
+                start=1
+            ):
+
+                writer.writerow([
+                    episode,
+                    reward
+                ])
+
+
+        print(
+            "Reward history saved."
+        )
+
+
+        mlflow.log_artifact(
+            "results/rewards.csv"
+        )
+
+
+        # ==========================================
+        # MLflow Model Registry
+        # ==========================================
+
+        # Example CartPole state:
+        # [cart position,
+        #  cart velocity,
+        #  pole angle,
+        #  pole angular velocity]
+
+
+
+        input_example = np.array(
+            [[0.0, 0.0, 0.0, 0.0]],
+            dtype=np.float32
+        )
+
+        mlflow.pytorch.log_model(
+            pytorch_model=network,
+            name="dqn-model",
+            registered_model_name="DQN-CartPole-Model",
+            input_example=input_example,
+            serialization_format="pickle"
+        )
+
+        print("Model registered with MLflow.")
+
 
     env.close()
