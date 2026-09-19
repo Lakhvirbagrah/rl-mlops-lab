@@ -5,6 +5,7 @@ import gymnasium as gym
 import random
 import numpy as np
 import csv
+import mlflow
 
 from replay_buffer import (
     create_replay_buffer,
@@ -170,6 +171,8 @@ if __name__ == "__main__":
     random.seed(42)
     np.random.seed(42)
     torch.manual_seed(42)
+        # MLflow experiment
+    mlflow.set_experiment("DQN-CartPole")   
 
     # Environment
     env = gym.make("CartPole-v1")
@@ -205,37 +208,45 @@ if __name__ == "__main__":
     )
 
     rewards = []
+        # Start MLflow run
+with mlflow.start_run(run_name="DQN-Baseline"):
 
-    # Training
+    mlflow.log_params({
+        "learning_rate": 0.001,
+        "gamma": 0.99,
+        "epsilon_start": 1.0,
+        "epsilon_decay": 0.995,
+        "min_epsilon": 0.05,
+        "batch_size": 32,
+        "replay_capacity": 10000,
+        "episodes": num_episodes,
+        "target_update_frequency": 10,
+        "random_seed": 42
+    })
+
+    # Training loop
     for episode in range(num_episodes):
 
         state, info = env.reset()
 
         total_reward = 0
-
         done = False
-
         loss = 0.0
 
         while not done:
 
-            # Choose action
             action = choose_action_epsilon_greedy(
                 network,
                 state,
                 epsilon
             )
 
-            # Take action
             next_state, reward, terminated, truncated, info = env.step(
                 action
             )
 
-            # IMPORTANT:
-            # Calculate done BEFORE storing experience
             done = terminated or truncated
 
-            # Store experience
             add_experience(
                 replay_buffer,
                 state,
@@ -246,7 +257,6 @@ if __name__ == "__main__":
                 replay_capacity
             )
 
-            # Train from replay buffer
             if len(replay_buffer) >= batch_size:
 
                 loss = train_from_replay(
@@ -258,27 +268,36 @@ if __name__ == "__main__":
                     gamma=0.99
                 )
 
-            # Move to next state
             state = next_state
-
             total_reward += reward
 
-        # Update target network every 10 episodes
         if (episode + 1) % 10 == 0:
 
             target_network.load_state_dict(
                 network.state_dict()
             )
 
-        # Reduce exploration
-        epsilon = decay_epsilon(
-            epsilon
+        epsilon = decay_epsilon(epsilon)
+
+        rewards.append(total_reward)
+
+        mlflow.log_metric(
+            "episode_reward",
+            total_reward,
+            step=episode + 1
         )
 
-        rewards.append(
-            total_reward
+        mlflow.log_metric(
+            "loss",
+            loss,
+            step=episode + 1
         )
 
+        mlflow.log_metric(
+            "epsilon",
+            epsilon,
+            step=episode + 1
+        )
 
         print(
             "Episode:",
@@ -291,22 +310,18 @@ if __name__ == "__main__":
             loss
         )
 
-    # Results
-    average_reward = (
-        sum(rewards) / len(rewards)
-    )
+    # Final results
+    average_reward = sum(rewards) / len(rewards)
+    best_reward = max(rewards)
 
-    print()
-    print("Training Results")
-    print("----------------")
-    print(
-        "Average reward:",
+    mlflow.log_metric(
+        "average_reward",
         average_reward
     )
 
-    print(
-        "Best reward:",
-        max(rewards)
+    mlflow.log_metric(
+        "best_reward",
+        best_reward
     )
 
     # Save model
@@ -315,9 +330,16 @@ if __name__ == "__main__":
         "models/dqn_cartpole.pth"
     )
 
-    print()
-    print("Model saved.")
-    with open("results/rewards.csv", "w", newline="") as file:
+    mlflow.log_artifact(
+        "models/dqn_cartpole.pth"
+    )
+
+    # Save reward history
+    with open(
+        "results/rewards.csv",
+        "w",
+        newline=""
+    ) as file:
 
         writer = csv.writer(file)
 
@@ -326,13 +348,18 @@ if __name__ == "__main__":
             "reward"
         ])
 
-        for episode, reward in enumerate(rewards, start=1):
+        for episode, reward in enumerate(
+            rewards,
+            start=1
+        ):
 
             writer.writerow([
                 episode,
                 reward
             ])
 
-    print("Reward history saved.")
+    mlflow.log_artifact(
+        "results/rewards.csv"
+    )
 
     env.close()

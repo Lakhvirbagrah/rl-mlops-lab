@@ -2,3 +2,4 @@ gymnasium
 torch
 numpy
 matplotlib
+mlflow
