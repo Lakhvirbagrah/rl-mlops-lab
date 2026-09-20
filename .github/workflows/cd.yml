@@ -11,7 +11,7 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: lakhvirbagrah/rl-mlops-lab
 
 jobs:
   build-and-push:
@@ -36,4 +36,4 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
