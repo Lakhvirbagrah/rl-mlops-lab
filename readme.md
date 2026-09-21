@@ -312,6 +312,13 @@ Python, PyTorch, Gymnasium, MLflow, pytest, GitHub Actions, Docker, FastAPI, Uvi
 
 ---
 
+## Live Deployment
+
+The trained DQN model is deployed as a FastAPI service on Render.
+
+- Health endpoint: `https://rl-mlops-lab-1.onrender.com/health`
+- Prediction endpoint: `https://rl-mlops-lab-1.onrender.com/predict`
+
 ## Key Takeaway
 
 This project goes beyond model training and demonstrates the full AI engineering lifecycle:
