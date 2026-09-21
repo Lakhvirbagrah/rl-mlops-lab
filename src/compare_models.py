@@ -1,7 +1,7 @@
 import gymnasium as gym
 import torch
 import mlflow.pytorch
-
+import mlflow
 from mlflow import MlflowClient
 
 
@@ -171,4 +171,43 @@ else:
 
     print(
         "Version 1 remains champion."
+    )
+
+
+
+with mlflow.start_run(run_name="V1-Controlled-Evaluation"):
+    mlflow.log_param("model_version", 1)
+    mlflow.log_param("evaluation_episodes", NUM_EPISODES)
+    mlflow.log_param("evaluation_seed_start", 1000)
+
+    mlflow.log_metric(
+        "evaluation_average_reward",
+        v1_results["average"]
+    )
+    mlflow.log_metric(
+        "evaluation_best_reward",
+        v1_results["best"]
+    )
+    mlflow.log_metric(
+        "evaluation_worst_reward",
+        v1_results["worst"]
+    )
+
+
+with mlflow.start_run(run_name="V2-Controlled-Evaluation"):
+    mlflow.log_param("model_version", 2)
+    mlflow.log_param("evaluation_episodes", NUM_EPISODES)
+    mlflow.log_param("evaluation_seed_start", 1000)
+
+    mlflow.log_metric(
+        "evaluation_average_reward",
+        v2_results["average"]
+    )
+    mlflow.log_metric(
+        "evaluation_best_reward",
+        v2_results["best"]
+    )
+    mlflow.log_metric(
+        "evaluation_worst_reward",
+        v2_results["worst"]
     )
