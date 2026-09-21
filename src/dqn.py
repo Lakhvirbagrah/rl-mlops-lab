@@ -198,7 +198,7 @@ if __name__ == "__main__":
 
     target_update_frequency = 10
 
-    seed = 42
+    seed = 123
 
     # Working epsilon
     epsilon = epsilon_start
@@ -274,7 +274,7 @@ if __name__ == "__main__":
     # ==========================================
 
     with mlflow.start_run(
-        run_name="DQN-Registered-V1"
+        run_name="DQN-Retrained-V2"
     ):
 
         # ---------------------------
