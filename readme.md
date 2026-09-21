@@ -1,4 +1,4 @@
-# RL MLOps Lab — DQN CartPole
+# End-to-End Reinforcement Learning MLOps Pipeline — DQN CartPole
 
 End-to-end Reinforcement Learning and MLOps project using PyTorch, MLflow, Docker, FastAPI, GitHub Actions, GHCR, and Render.
 
